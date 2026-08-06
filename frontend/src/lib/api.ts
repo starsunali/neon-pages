@@ -4,7 +4,14 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { getAccessToken, setTokens, clearTokens } from './auth';
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+// API base. The client always calls the API through the same origin as the
+// app (nginx serves both), so derive it from window.location at runtime —
+// this works on localhost AND any public domain/port without rebuilding.
+// The NEXT_PUBLIC_API_URL is only a fallback for server-side / non-browser use.
+export const API_URL =
+  typeof window !== 'undefined'
+    ? `${window.location.origin}/api/v1`
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1');
 
 export const api = axios.create({
   baseURL: API_URL,
