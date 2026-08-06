@@ -31,6 +31,20 @@ Built to the specification in `docs/SPECIFICATION.md`.
 
 ---
 
+## 🖼️ Screenshots
+
+Dark, neon, glassmorphism UI across the main screens.
+
+| Login (neon glass panel) | User dashboard (QR code) | Admin panel (stats + users) |
+|---|---|---|
+| <img src="docs/screenshots/login.png" width="280" alt="Neon Pages login"> | <img src="docs/screenshots/dashboard.png" width="280" alt="User dashboard with QR code"> | <img src="docs/screenshots/admin.png" width="280" alt="Admin panel statistics and users"> |
+
+Public pages are unauthenticated and render at `/p/{slug}`:
+
+<img src="docs/screenshots/public-page.png" width="300" alt="Public page example">
+
+---
+
 ## 🚀 Quick Start (Docker — recommended)
 
 > **Prerequisites:** Docker & Docker Compose. HTTPS uses the domain in `.env`.

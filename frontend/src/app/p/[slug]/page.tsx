@@ -5,7 +5,10 @@ import AnimatedBackground from '@/components/animated-background';
 export const dynamic = 'force-dynamic';
 
 async function fetchPage(slug: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+  // Server-side fetch: use the in-network API URL inside the container,
+  // falling back to the public (browser) URL for non-Docker dev.
+  const internal = process.env.API_INTERNAL_URL;
+  const apiUrl = internal ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const res = await fetch(`${apiUrl}/p/${slug}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
