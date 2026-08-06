@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { clearTokens, getAccessToken, getUser, type AuthUser } from '@/lib/auth';
 import QrCodeView from '@/components/qr-code';
 import { GlassCard } from '@/components/glass-card';
