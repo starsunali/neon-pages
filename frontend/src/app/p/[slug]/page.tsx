@@ -5,8 +5,8 @@ import AnimatedBackground from '@/components/animated-background';
 export const dynamic = 'force-dynamic';
 
 async function fetchPage(slug: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
-  const res = await fetch(`${apiUrl}/v1/p/${slug}`, { cache: 'no-store' });
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+  const res = await fetch(`${apiUrl}/p/${slug}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
 }

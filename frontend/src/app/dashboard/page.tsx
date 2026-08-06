@@ -55,7 +55,7 @@ export default function DashboardPage() {
     if (!page?.qrCodePng) return;
     const filename = page.qrCodePng.split('/').pop();
     const token = getAccessToken();
-    const res = await fetch(`${API_URL}/v1/files/qr/${filename}`, {
+    const res = await fetch(`${API_URL}/files/qr/${filename}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const blob = await res.blob();
