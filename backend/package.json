@@ -1,6 +1,6 @@
 {
   "name": "neon-pages-backend",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Neon Pages REST API — NestJS + Prisma + PostgreSQL",
   "private": true,
   "license": "UNLICENSED",
