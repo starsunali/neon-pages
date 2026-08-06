@@ -34,6 +34,16 @@ export class CreatePageDto {
 }
 
 export class UpdatePageDto {
+  /** Editable public URL slug — changing this also regenerates the QR code */
+  @ApiPropertyOptional({ example: 'my-product-2' })
+  @IsOptional()
+  @IsString()
+  @Length(3, 80)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'Slug must be lowercase alphanumeric, hyphens only, no leading/trailing hyphen',
+  })
+  slug?: string;
+
   @ApiPropertyOptional({ example: 'My Updated Product' })
   @IsOptional()
   @IsString()

@@ -33,6 +33,18 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({
+    example: 'my-page',
+    description: 'Optional slug — creates this user’s public page immediately',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(3, 80)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'Page slug must be lowercase alphanumeric, hyphens only',
+  })
+  pageSlug?: string;
 }
 
 export class QueryUsersDto {

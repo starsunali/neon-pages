@@ -86,13 +86,21 @@ export class PagesService {
     return page;
   }
 
-  /** Admin: edit any page's content (title, content, SEO, publish state) */
+  /** Admin: edit any page's content (title, content, SEO, publish state, slug) */
   async updateBySlugForAdmin(slug: string, dto: UpdatePageDto, ctx: RequestContext) {
     const page = await this.prisma.page.findUnique({ where: { slug } });
     if (!page) throw new NotFoundException('Page not found');
+
+    // Slug (public URL) can be renamed — enforce uniqueness if it changed
+    const newSlug = dto.slug && dto.slug !== page.slug ? dto.slug : undefined;
+    if (newSlug && (await this.prisma.page.findUnique({ where: { slug: newSlug } }))) {
+      throw new ConflictException('That page slug is already in use.');
+    }
+
     const updated = await this.prisma.page.update({
       where: { id: page.id },
       data: {
+        slug: newSlug,
         title: dto.title,
         content: dto.content,
         isPublished: dto.isPublished,
@@ -101,12 +109,22 @@ export class PagesService {
       },
       include: { owner: { select: { username: true, email: true } } },
     });
+
+    // Regenerate the QR code since the encoded public URL changed
+    if (newSlug) {
+      const qr = await this.qr.generateForUrl(newSlug);
+      await this.prisma.page.update({
+        where: { id: page.id },
+        data: { qrCodePng: qr.pngPath, qrCodeSvg: qr.svgPath },
+      });
+    }
+
     await this.audit.record({
       userId: ctx.actorId,
       action: 'PAGE_UPDATED_BY_ADMIN',
       entity: 'page',
       entityId: page.id,
-      metadata: { slug: page.slug, title: updated.title },
+      metadata: { slug: updated.slug, title: updated.title },
       ip: ctx.ip,
     });
     return updated;

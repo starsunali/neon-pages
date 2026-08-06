@@ -44,10 +44,10 @@ export default function AdminPage() {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [total, setTotal] = useState(0);
 
-  // Search is debounced: the input reflects keystrokes immediately, the server
-  // query only fires after a pause, so typing is never interrupted.
-  const [searchInput, setSearchInput] = useState('');
+  // Search runs in its own component so the field never loses focus while
+  // typing; the parent only updates when a (debounced) value is emitted.
   const [search, setSearch] = useState('');
+  const [searching, setSearching] = useState(false);
   const [page, setPage] = useState(1);
 
   const [notice, setNotice] = useState<string | null>(null);
@@ -59,17 +59,22 @@ export default function AdminPage() {
   const [editPage, setEditPage] = useState<{ slug: string; title: string } | null>(null);
 
   const load = useCallback(async () => {
-    const [statsRes, usersRes, activityRes] = await Promise.all([
-      api.get('/admin/users/stats'),
-      api.get(
-        `/admin/users?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`,
-      ),
-      api.get('/admin/users/activity'),
-    ]);
-    setStats(statsRes.data);
-    setUsers(usersRes.data.items);
-    setTotal(usersRes.data.pagination.total);
-    setActivity(activityRes.data);
+    setSearching(true);
+    try {
+      const [statsRes, usersRes, activityRes] = await Promise.all([
+        api.get('/admin/users/stats'),
+        api.get(
+          `/admin/users?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`,
+        ),
+        api.get('/admin/users/activity'),
+      ]);
+      setStats(statsRes.data);
+      setUsers(usersRes.data.items);
+      setTotal(usersRes.data.pagination.total);
+      setActivity(activityRes.data);
+    } finally {
+      setSearching(false);
+    }
   }, [page, search]);
 
   useEffect(() => {
@@ -80,19 +85,10 @@ export default function AdminPage() {
     load().catch(() => undefined);
   }, [load, router]);
 
-  // Debounce the search box so typing stays responsive
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(searchInput);
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
+  // Success/error notice stays until the admin performs another action.
   const tell = (msg: string, tone: 'ok' | 'err' = 'ok') => {
     setNotice(msg);
     setNoticeTone(tone);
-    setTimeout(() => setNotice(null), 4000);
   };
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -199,11 +195,12 @@ export default function AdminPage() {
         <GlassCard>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Users</h2>
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search username / e-mail…"
-              className="input-neon max-w-xs"
+            <SearchBox
+              busy={searching}
+              onSearch={(q) => {
+                setSearch(q);
+                setPage(1);
+              }}
             />
           </div>
 
@@ -398,19 +395,42 @@ function CreateUserModal({
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [pageUrl, setPageUrl] = useState('');
   const [role, setRole] = useState<'ADMIN' | 'USER'>('USER');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function parsePageSlug(raw: string): string {
+    const s = raw.trim().toLowerCase();
+    const m =
+      s.match(/\/p\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/) ||
+      s.match(/^([a-z0-9]+(?:-[a-z0-9]+)*)$/);
+    return m ? m[1] : '';
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (username.trim().length < 3) return setError('Username must be at least 3 characters.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('A valid e-mail is required.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setError('A valid e-mail is required.');
     if (password.length < 8) return setError('Password must be at least 8 characters.');
+
+    const pageSlug = parsePageSlug(pageUrl);
+    if (pageUrl.trim() && !pageSlug) {
+      return setError(
+        'Page URL must be a slug like "my-page" or a link like https://…/p/my-page',
+      );
+    }
+
     setBusy(true);
     setError(null);
     try {
-      await api.post('/admin/users', { username: username.trim(), email, password, role });
+      await api.post('/admin/users', {
+        username: username.trim(),
+        email,
+        password,
+        role,
+        pageSlug: pageSlug || undefined,
+      });
       onCreated();
     } catch (err: any) {
       const msg = err?.response?.data?.message;
@@ -430,7 +450,10 @@ function CreateUserModal({
           <input type="email" className="input-neon" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jdoe@example.com" />
         </Field>
         <Field label="Password">
-          <input type="text" className="input-neon" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="e.g. Str0ng!Pass" />
+          <PasswordInput value={password} onChange={setPassword} placeholder="e.g. Str0ng!Pass" />
+        </Field>
+        <Field label="Public page URL (create their page)" hint="Optional — e.g. my-page or https://…/p/my-page">
+          <input className="input-neon" value={pageUrl} onChange={(e) => setPageUrl(e.target.value)} placeholder="my-page" />
         </Field>
         <Field label="Role">
           <select className="input-neon" value={role} onChange={(e) => setRole(e.target.value as 'ADMIN' | 'USER')}>
@@ -496,10 +519,10 @@ function ResetPasswordModal({
     >
       <form onSubmit={submit} className="space-y-4">
         <Field label="New password">
-          <input type="text" className="input-neon" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="e.g. Str0ng!Pass" />
+          <PasswordInput value={password} onChange={setPassword} placeholder="e.g. Str0ng!Pass" />
         </Field>
         <Field label="Confirm new password">
-          <input type="text" className="input-neon" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="repeat it" />
+          <PasswordInput value={confirm} onChange={setConfirm} placeholder="repeat it" />
         </Field>
         {error && <p className="text-sm text-pink-300">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">
@@ -534,6 +557,7 @@ function PageEditorModal({
   onError: (m: string) => void;
 }) {
   const [title, setTitle] = useState(initialTitle);
+  const [slugValue, setSlugValue] = useState(slug);
   const [content, setContent] = useState('');
   const [seoTitle, setSeoTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -544,12 +568,13 @@ function PageEditorModal({
   const [error, setError] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const publicUrl = `${origin}/p/${slug}`;
+  const publicUrl = `${origin}/p/${slugValue}`;
 
   useEffect(() => {
     api
       .get(`/admin/pages/${slug}`)
       .then((res) => {
+        setSlugValue(res.data.slug ?? slug);
         setTitle(res.data.title ?? initialTitle);
         setContent(res.data.content ?? '');
         setSeoTitle(res.data.seoTitle ?? '');
@@ -584,6 +609,7 @@ function PageEditorModal({
     setError(null);
     try {
       await api.patch(`/admin/pages/${slug}`, {
+        slug: slugValue,
         title,
         content,
         seoTitle: seoTitle || null,
@@ -610,7 +636,7 @@ function PageEditorModal({
   ];
 
   return (
-    <Modal title={`Edit page — /p/${slug}`} onClose={onClose} wide>
+    <Modal title={`Edit page — /p/${slugValue}`} onClose={onClose} wide>
       {loading ? (
         <div className="flex justify-center py-10">
           <span className="spinner" />
@@ -618,6 +644,14 @@ function PageEditorModal({
       ) : (
         <div className="space-y-4">
           {error && <p className="text-sm text-pink-300">{error}</p>}
+
+          <Field label="Public URL (slug)" hint="Lowercase letters, numbers and hyphens. Changes the public link and regenerates the QR code.">
+            <input
+              className="input-neon"
+              value={slugValue}
+              onChange={(e) => setSlugValue(e.target.value.toLowerCase())}
+            />
+          </Field>
 
           <Field label="Title">
             <input className="input-neon" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -691,7 +725,7 @@ function PageEditorModal({
               onChange={(e) => setIsPublished(e.target.checked)}
               className="h-4 w-4 accent-indigo-500"
             />
-            Published (visible at <span className="font-mono text-indigo-300">/p/{slug}</span>)
+            Published (visible at <span className="font-mono text-indigo-300">/p/{slugValue}</span>)
           </label>
 
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/10 pt-3">
@@ -714,12 +748,106 @@ function PageEditorModal({
 /* =====================================================================
  * Shared building blocks
  * ================================================================== */
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm text-gray-300">{label}</span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
     </label>
+  );
+}
+
+/* Password field that hides the value until the eye icon is toggled. */
+function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        className="input-neon pr-11"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="new-password"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? 'Hide password' : 'Show password'}
+        title={show ? 'Hide password' : 'Show password'}
+        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1.5 text-gray-400 hover:text-white"
+      >
+        {show ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61" />
+            <line x1="2" y1="2" x2="22" y2="22" />
+            <path d="M14.12 14.12a3 3 0 1 0-4.24-4.24" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* Self-contained, debounced search box — never loses focus while typing. */
+function SearchBox({
+  busy,
+  onSearch,
+}: {
+  busy: boolean;
+  onSearch: (q: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const t = setTimeout(() => onSearch(value), 400);
+    return () => clearTimeout(t);
+  }, [value, onSearch]);
+
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Search username / e-mail…"
+        spellCheck={false}
+        autoComplete="off"
+        className="input-neon max-w-xs pr-9"
+      />
+      {busy && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+          <span className="spinner" />
+        </span>
+      )}
+    </div>
   );
 }
 

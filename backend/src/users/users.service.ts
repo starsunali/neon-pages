@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role, Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { QrService } from '../qr/qr.service';
 import { CreateUserDto, QueryUsersDto } from './dto/user.dto';
 import { RequestContext } from '../auth/auth.service';
 
@@ -25,6 +26,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly qr: QrService,
   ) {}
 
   // ---------------------------------------------------------------
@@ -131,6 +133,28 @@ export class UsersService {
       },
       select: SAFE_USER_SELECT,
     });
+
+    // Optional: create the user's page immediately from the provided slug
+    if (dto.pageSlug) {
+      if (await this.prisma.page.findUnique({ where: { slug: dto.pageSlug } })) {
+        throw new ConflictException('That page slug is already in use.');
+      }
+      const page = await this.prisma.page.create({
+        data: {
+          slug: dto.pageSlug,
+          title: dto.username,
+          content: `# ${dto.username}'s page\n\nThis page was created from the admin panel. Edit it with the page editor.`,
+          ownerId: user.id,
+          publishedAt: new Date(),
+        },
+      });
+      const qr = await this.qr.generateForUrl(page.slug);
+      await this.prisma.page.update({
+        where: { id: page.id },
+        data: { qrCodePng: qr.pngPath, qrCodeSvg: qr.svgPath },
+      });
+    }
+
     await this.audit.record({
       userId: ctx.actorId,
       action: 'USER_CREATED',
