@@ -21,13 +21,20 @@ Built to the specification in `docs/SPECIFICATION.md`.
 
 ## ✨ Features
 
-- **Authentication** — username/password login, JWT access + refresh tokens, Argon2/bcrypt hashing, secure `HttpOnly` cookies, CAPTCHA, rate limiting & brute-force lockout, audit logging.
-- **Roles** — `ADMIN` and `USER`. Admins get the full admin panel; users get a personal dashboard.
-- **Admin panel** — statistics, user management (CRUD, enable/disable, reset/change password, assign/remove pages, search/filter/sort/pagination/export), page management (CRUD, publish/unpublish, duplicate, assign owner, generate QR & public URL, SEO metadata).
-- **User dashboard** — welcome, own QR code, public link, copy link, download QR (PNG/SVG + hi-res), change password with strength meter.
-- **Public pages** — unauthenticated routes at `/p/{slug}`.
+- **Authentication** — username/password login, JWT access + refresh tokens (rotation), Argon2/bcrypt hashing, secure `HttpOnly` cookies, CAPTCHA, rate limiting & brute-force lockout, audit logging.
+- **Roles** — `ADMIN` and `USER`. Admins get the full admin panel; users get a personal dashboard and can change their own password.
+- **Admin panel** —
+  - **Add new user** — create users and their public page instantly (page URL required); role + hidden password with an **eye show/hide** toggle.
+  - **User management** — enable/disable, delete, **reset password** (passwords stay hashed), search/filter/pagination.
+  - **Search** — a polished, debounced search box with a clear button (never loses focus while typing).
+  - **Page management** — every row shows the user’s public link; clicking it opens a **GUI Markdown page editor** (bold/italic/headings/lists/link toolbar, live preview, SEO fields, publish toggle, and an editable **URL slug** that regenerates the QR code on rename).
+- **User dashboard** — welcome, QR code, public link, copy link, download QR (PNG/SVG + hi-res).
+- **Public pages** — unauthenticated routes at `/p/{slug}`, created/managed via the admin panel.
 - **Security** — SQLi/XSS/CSRF/clickjacking protections, input validation + sanitization, parameterized Prisma queries, security headers, helmet, CORS whitelist.
 - **Neon glassmorphism UI** — dark, animated, responsive from 320px→4K, accessible (ARIA, keyboard nav, focus states, contrast).
+- **Delivery** — Docker Compose (dev + production), Nginx reverse proxy with HTTPS via Certbot, `scripts/deploy.sh`, CI/CD, full docs.
+
+> **Latest release:** [v1.0.4](https://github.com/starsunali/neon-pages/releases)
 
 ---
 
