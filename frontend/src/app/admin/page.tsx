@@ -817,8 +817,8 @@ function PasswordInput({
   );
 }
 
-/* Dedicated, polished search box: search icon + clear button, instant typing,
-   Enter searches immediately. Debounced; parent callback is stable. */
+/* Dedicated, polished search box with clear button, instant typing; Enter searches
+   immediately. Debounced; parent callback is stable. */
 function UserSearchBox({
   busy,
   onSearch,
@@ -835,12 +835,6 @@ function UserSearchBox({
 
   return (
     <div className="relative w-full max-w-xs">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-      >
-        🔍
-      </span>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -853,7 +847,7 @@ function UserSearchBox({
         placeholder="Search users…"
         spellCheck={false}
         autoComplete="off"
-        className="input-neon w-full pl-9 pr-9"
+        className="input-neon w-full pr-9"
       />
       {busy ? (
         <span className="absolute right-3 top-1/2 -translate-y-1/2">
