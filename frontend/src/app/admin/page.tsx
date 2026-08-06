@@ -57,8 +57,11 @@ export default function AdminPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [resetUser, setResetUser] = useState<UserRow | null>(null);
   const [editPage, setEditPage] = useState<{ slug: string; title: string } | null>(null);
+  // Guards against out-of-order responses (latest request wins).
+  const loadRef = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadRef.current;
     setSearching(true);
     try {
       const [statsRes, usersRes, activityRes] = await Promise.all([
@@ -68,14 +71,21 @@ export default function AdminPage() {
         ),
         api.get('/admin/users/activity'),
       ]);
+      if (seq !== loadRef.current) return; // a newer request superseded this one
       setStats(statsRes.data);
       setUsers(usersRes.data.items);
       setTotal(usersRes.data.pagination.total);
       setActivity(activityRes.data);
     } finally {
-      setSearching(false);
+      if (seq === loadRef.current) setSearching(false);
     }
   }, [page, search]);
+
+  // Stable callback so the search box effect never gets re-created mid-typing.
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
+  }, []);
 
   useEffect(() => {
     if (!getUser() || !isAdmin()) {
@@ -195,13 +205,7 @@ export default function AdminPage() {
         <GlassCard>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Users</h2>
-            <SearchBox
-              busy={searching}
-              onSearch={(q) => {
-                setSearch(q);
-                setPage(1);
-              }}
-            />
+            <UserSearchBox busy={searching} onSearch={handleSearch} />
           </div>
 
           <div className="overflow-x-auto">
@@ -415,10 +419,11 @@ function CreateUserModal({
     if (password.length < 8) return setError('Password must be at least 8 characters.');
 
     const pageSlug = parsePageSlug(pageUrl);
-    if (pageUrl.trim() && !pageSlug) {
-      return setError(
-        'Page URL must be a slug like "my-page" or a link like https://…/p/my-page',
-      );
+    if (!pageUrl.trim()) {
+      return setError('Public page URL is required — every user needs a page.');
+    }
+    if (!pageSlug) {
+      return setError('Public page URL must be a slug like "my-page" or a link like https://…/p/my-page');
     }
 
     setBusy(true);
@@ -452,7 +457,7 @@ function CreateUserModal({
         <Field label="Password">
           <PasswordInput value={password} onChange={setPassword} placeholder="e.g. Str0ng!Pass" />
         </Field>
-        <Field label="Public page URL (create their page)" hint="Optional — e.g. my-page or https://…/p/my-page">
+        <Field label="Public page URL (create their page)" hint="Required — e.g. my-page or https://…/p/my-page">
           <input className="input-neon" value={pageUrl} onChange={(e) => setPageUrl(e.target.value)} placeholder="my-page" />
         </Field>
         <Field label="Role">
@@ -812,41 +817,59 @@ function PasswordInput({
   );
 }
 
-/* Self-contained, debounced search box — never loses focus while typing. */
-function SearchBox({
+/* Dedicated, polished search box: search icon + clear button, instant typing,
+   Enter searches immediately. Debounced; parent callback is stable. */
+function UserSearchBox({
   busy,
   onSearch,
 }: {
   busy: boolean;
   onSearch: (q: string) => void;
 }) {
-  const [value, setValue] = useState('');
-  const first = useRef(true);
+  const [q, setQ] = useState('');
 
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    const t = setTimeout(() => onSearch(value), 400);
+    const t = setTimeout(() => onSearch(q), 350);
     return () => clearTimeout(t);
-  }, [value, onSearch]);
+  }, [q, onSearch]);
 
   return (
-    <div className="relative">
+    <div className="relative w-full max-w-xs">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+      >
+        🔍
+      </span>
       <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Search username / e-mail…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onSearch(q);
+          }
+        }}
+        placeholder="Search users…"
         spellCheck={false}
         autoComplete="off"
-        className="input-neon max-w-xs pr-9"
+        className="input-neon w-full pl-9 pr-9"
       />
-      {busy && (
+      {busy ? (
         <span className="absolute right-3 top-1/2 -translate-y-1/2">
           <span className="spinner" />
         </span>
-      )}
+      ) : q ? (
+        <button
+          type="button"
+          onClick={() => setQ('')}
+          aria-label="Clear search"
+          title="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-1.5 py-0.5 text-gray-400 hover:text-white"
+        >
+          ✕
+        </button>
+      ) : null}
     </div>
   );
 }

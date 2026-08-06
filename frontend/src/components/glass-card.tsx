@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ElementType } from 'react';
+import { ElementType, useMemo } from 'react';
 
 interface GlassCardProps {
   as?: ElementType;
@@ -8,11 +8,15 @@ interface GlassCardProps {
 }
 
 /**
- * Wrapper for a glassmorphism card with a subtle entrance animation.
- * (Plain element — no ref forwarding; annotate with a role if a ref is needed.)
+ * Glassmorphism card with a subtle entrance animation.
+ *
+ * IMPORTANT: the motion component is memoized by `as`. If we created it inline
+ * (`motion(as ?? 'div')`) a NEW component type would be produced on every render,
+ * causing React to unmount/remount the card's children each time — which resets
+ * input focus/state (e.g. a search box). Memoizing keeps children stable.
  */
 export function GlassCard({ as, className = '', children }: GlassCardProps) {
-  const MotionTag = motion(as ?? 'div');
+  const MotionTag = useMemo(() => motion(as ?? 'div') as typeof motion.div, [as]);
   return (
     <MotionTag
       initial={{ opacity: 0, y: 16 }}

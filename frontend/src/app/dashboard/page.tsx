@@ -141,10 +141,9 @@ export default function DashboardPage() {
         ) : (
           <GlassCard className="text-center">
             <h2 className="text-xl font-semibold">You don&apos;t have a page yet</h2>
-            <p className="mt-2 text-gray-400">Create your first page to get your QR code.</p>
-            <a href="/profile" className="btn-neon mt-6 inline-block">
-              Create my page
-            </a>
+            <p className="mt-2 text-gray-400">
+              Your page and QR code will be created for you by an administrator.
+            </p>
           </GlassCard>
         )}
       </div>
