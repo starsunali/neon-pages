@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Builds
+.next/
+out/
+dist/
+build/
+**/dist/
+**/build/
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+**/coverage/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+*.key
+!test/*.pem
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+uploads/
+qr/
+*.sqlite
+*.sqlite-journal
+
+# Docker / runtime
+data/
+pgdata/
+certbot/
+www/
+dhparam/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

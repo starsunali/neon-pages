@@ -1,0 +1,58 @@
+### Neon Pages — HTTP smoke tests (REST Client / IntelliJ or curl)
+# Target the running stack. Requires a seeded DB (admin/demo accounts).
+# Execute with VSCode "REST Client" (rest-client), or run the bundled curl script.
+
+@base = http://localhost
+@api = {{base}}/api/v1
+
+### 0. Health
+GET {{api}}/health
+
+### 1. Login as demo user (expect 200 + tokens)
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "username": "demo", "password": "User@12345", "captcha": "ABCD" }
+
+### 2. Who am I (use access token from login)
+GET {{api}}/auth/me
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 3. Rate limiting / wrong password (expect 401; repeat 5x → 403 lock)
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "username": "demo", "password": "WrongPass1!", "captcha": "ABCD" }
+
+### 4. Admin login
+# @name adminlogin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "Admin@12345", "captcha": "ABCD" }
+
+### 5. Admin stats (expect 200)
+GET {{api}}/admin/users/stats
+Authorization: Bearer {{adminlogin.response.body.accessToken}}
+
+### 6. Admin list users
+GET {{api}}/admin/users?page=1&limit=10&search=demo
+Authorization: Bearer {{adminlogin.response.body.accessToken}}
+
+### 7. Public page (no auth) — user must have created /p/welcome
+GET {{api}}/p/welcome
+
+### 8. SQLi probe (should NOT be a 500 / data leak)
+GET {{api}}/p/' OR '1'='1
+
+### 9. XSS probe via create page content (later assert stored-escaped)
+PATCH {{api}}/pages/me
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{ "content": "<script>alert(1)</script>Safe" }
+
+### 10. Logout
+POST {{api}}/auth/logout
+Authorization: Bearer {{login.response.body.accessToken}}

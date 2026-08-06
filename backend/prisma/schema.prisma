@@ -1,0 +1,161 @@
+// Neon Pages — Prisma schema
+// Docs: docs/DATABASE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// Roles
+// ------------------------------------------------------------------
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id              String           @id @default(cuid())
+  username        String           @unique
+  email           String?          @unique
+  passwordHash    String
+  role            Role             @default(USER)
+  isActive        Boolean          @default(true)
+  isLocked        Boolean          @default(false)
+  lockUntil       DateTime?
+  failedAttempts  Int              @default(0)
+  lastLoginAt     DateTime?
+  passwordChangedAt DateTime?      @default(now())
+  pages           Page[]
+  sessions        Session[]
+  refreshTokens   RefreshToken[]
+  passwordHistory PasswordHistory[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+// ------------------------------------------------------------------
+// Pages — each page belongs to exactly one user
+// ------------------------------------------------------------------
+model Page {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  content   String   @db.Text
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  visibility Visibility @default(PUBLIC)
+  seoTitle  String?
+  description String?
+  isPublished Boolean @default(true)
+  qrCodePng String?
+  qrCodeSvg String?
+  views     Int      @default(0)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([slug])
+  @@index([visibility])
+  @@map("pages")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+// ------------------------------------------------------------------
+// Sessions (login sessions)
+// ------------------------------------------------------------------
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ------------------------------------------------------------------
+// RefreshTokens (rotated & revoked)
+// ------------------------------------------------------------------
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  jti       String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  replacedBy String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ------------------------------------------------------------------
+// LoginAttempts (brute-force protection)
+// ------------------------------------------------------------------
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  username  String
+  ip        String?
+  userAgent String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+  @@map("login_attempts")
+}
+
+// ------------------------------------------------------------------
+// AuditLogs (audit trail)
+// ------------------------------------------------------------------
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ------------------------------------------------------------------
+// PasswordHistory (password reuse prevention)
+// ------------------------------------------------------------------
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_history")
+}
