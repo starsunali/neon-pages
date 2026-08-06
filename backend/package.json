@@ -4,6 +4,7 @@
   "description": "Neon Pages REST API — NestJS + Prisma + PostgreSQL",
   "private": true,
   "license": "UNLICENSED",
+  "type": "commonjs",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
