@@ -16,6 +16,8 @@ const SAFE_USER_SELECT = {
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
+  // Each user's public page link (/p/{slug}) so the admin can open/edit it
+  pages: { select: { slug: true, title: true, isPublished: true }, take: 1 },
 } satisfies Prisma.UserSelect;
 
 @Injectable()

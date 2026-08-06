@@ -68,6 +68,50 @@ export class PagesService {
     return updated;
   }
 
+  /** Admin: fetch any page by slug (for editing from the admin panel) */
+  async getBySlugForAdmin(slug: string, ctx: RequestContext) {
+    const page = await this.prisma.page.findUnique({
+      where: { slug },
+      include: { owner: { select: { username: true, email: true } } },
+    });
+    if (!page) throw new NotFoundException('Page not found');
+    await this.audit.record({
+      userId: ctx.actorId,
+      action: 'PAGE_READ_ADMIN',
+      entity: 'page',
+      entityId: page.id,
+      metadata: { slug: page.slug },
+      ip: ctx.ip,
+    });
+    return page;
+  }
+
+  /** Admin: edit any page's content (title, content, SEO, publish state) */
+  async updateBySlugForAdmin(slug: string, dto: UpdatePageDto, ctx: RequestContext) {
+    const page = await this.prisma.page.findUnique({ where: { slug } });
+    if (!page) throw new NotFoundException('Page not found');
+    const updated = await this.prisma.page.update({
+      where: { id: page.id },
+      data: {
+        title: dto.title,
+        content: dto.content,
+        isPublished: dto.isPublished,
+        seoTitle: dto.seoTitle,
+        description: dto.description,
+      },
+      include: { owner: { select: { username: true, email: true } } },
+    });
+    await this.audit.record({
+      userId: ctx.actorId,
+      action: 'PAGE_UPDATED_BY_ADMIN',
+      entity: 'page',
+      entityId: page.id,
+      metadata: { slug: page.slug, title: updated.title },
+      ip: ctx.ip,
+    });
+    return updated;
+  }
+
   /** Public route: render a published, public page without auth */
   async getPublicPage(slug: string, ctx: RequestContext) {
     const page = await this.prisma.page.findUnique({ where: { slug } });
