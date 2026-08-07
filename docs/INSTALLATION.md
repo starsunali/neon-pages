@@ -180,7 +180,7 @@ Then open `http://localhost:3001` (frontend) — login via the UI; API lives at 
 
 ## 7. Troubleshooting the install
 
-- **Port 80 in use** → stop Apache/nginx on the host or change `NGINX_PORT`.
+- **Port 80 or 443 in use** → stop the other service on the host, or map them to free ports in `.env`: `NGINX_PORT=8081` and `NGINX_HTTPS_PORT=8443`. Both are respected by the default compose file.
 - **Backend won't start → DB connection refused** → the Deploy script waits for the `db` health check; give it a minute: `docker compose logs -f db`.
 - **HTTPS not working** → confirm DNS resolves, run `scripts/certbot-init.sh`, then `docker compose -f docker-compose.prod.yml up -d`.
 

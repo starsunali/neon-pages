@@ -34,7 +34,7 @@ Built to the specification in `docs/SPECIFICATION.md`.
 - **Neon glassmorphism UI** — dark, animated, responsive from 320px→4K, accessible (ARIA, keyboard nav, focus states, contrast).
 - **Delivery** — Docker Compose (dev + production), Nginx reverse proxy with HTTPS via Certbot, `scripts/deploy.sh`, CI/CD, full docs.
 
-> **Latest release:** [v1.0.4](https://github.com/starsunali/neon-pages/releases)
+> **Latest release:** [v1.0.5](https://github.com/starsunali/neon-pages/releases)
 
 ---
 
