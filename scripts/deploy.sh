@@ -115,9 +115,9 @@ info "Applying database migrations and seed data…"
 # Wait for migrations to complete by watching the backend logs
 set +e
 ${COMPOSE} -f "$COMPOSE_FILE" exec -T backend sh -c \
-  "npx prisma migrate deploy && npx ts-node prisma/seed.ts" 2>/dev/null || \
+  "npx prisma migrate deploy && npx ts-node --compiler-options '{\"module\":\"commonjs\"}' prisma/seed.ts" 2>/dev/null || \
 ${COMPOSE} -f "$COMPOSE_FILE" run --rm backend sh -c \
-  "npx prisma migrate deploy && npx ts-node prisma/seed.ts"
+  "npx prisma migrate deploy && npx ts-node --compiler-options '{\"module\":\"commonjs\"}' prisma/seed.ts"
 set -e
 
 # ---------------------------------------------------------------- health check

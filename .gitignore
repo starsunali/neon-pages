@@ -37,7 +37,7 @@ yarn-error.log*
 
 # Runtime data
 uploads/
-qr/
+uploads/qr/
 *.sqlite
 *.sqlite-journal
 
